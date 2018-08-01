@@ -44,6 +44,10 @@ variable "db_name" {
   default = "atlas_production"
 }
 
+variable "additional_tags" {
+  default = {}
+}
+
 resource "aws_db_subnet_group" "rds" {
   count       = "${var.disable ? 0 : 1}"
   name        = "${var.name}"

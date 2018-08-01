@@ -128,6 +128,7 @@ resource "aws_security_group_rule" "ptfe-ssh" {
   cidr_blocks       = ["0.0.0.0/0"]
 }
 
+# ELB -> EC2
 resource "aws_security_group_rule" "ptfe-inbound-8080-from-elb" {
   count                    = "${length(local.elb_sg_ids)}"
   security_group_id        = "${aws_security_group.ptfe.id}"
@@ -208,6 +209,18 @@ resource "aws_security_group" "ptfe-external" {
   tags {
     Name = "terraform-enterprise-external"
   }
+}
+
+# EC2 -> ELB
+resource "aws_security_group_rule" "ptfe-internal-to-external" {
+  count                    = "${length(local.elb_sg_ids)}"
+  security_group_id        = "${element(local.elb_sg_ids, count.index)}"
+  type                     = "ingress"
+  protocol                 = "tcp"
+  from_port                = 443
+  to_port                  = 443
+  source_security_group_id = "${aws_security_group.ptfe.id}"
+  description              = "Allow terraform enterprise EC2 instances to talk to terraform enterprise ELB"
 }
 
 data "aws_subnet" "subnet" {

@@ -404,3 +404,7 @@ output "zone_id" {
 output "hostname" {
   value = "${var.hostname}"
 }
+
+output "ptfe_sg" {
+  value = "${aws_security_group.ptfe.id}"
+}

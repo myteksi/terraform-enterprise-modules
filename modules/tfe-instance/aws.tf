@@ -1,3 +1,22 @@
+locals {
+  ebs_tags {
+    Name           = "terraform-enterprise-${var.hostname}"
+    InstallationId = "${var.installation_id}"
+  }
+
+  ec2_sg_tags {
+    Name = "terraform-enterprise"
+  }
+
+  elb_sg_tags {
+    Name = "terraform-enterprise-external"
+  }
+
+  elb_tags {
+    Name = "terraform-enterprise"
+  }
+}
+
 variable "hostname" {}
 
 variable "vpc_id" {}
@@ -130,9 +149,7 @@ resource "aws_security_group" "ptfe" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags {
-    Name = "terraform-enterprise"
-  }
+  tags = "${merge(local.ec2_sg_tags, var.additional_tags)}"
 }
 
 resource "aws_security_group" "ptfe-external" {
@@ -169,9 +186,7 @@ resource "aws_security_group" "ptfe-external" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags {
-    Name = "terraform-enterprise-external"
-  }
+  tags = "${merge(local.elb_sg_tags, var.additional_tags)}"
 }
 
 data "aws_subnet" "subnet" {
@@ -184,13 +199,7 @@ resource "aws_ebs_volume" "data" {
   size              = "${var.ebs_size}"
   type              = "gp2"
 
-  tags {
-    Name = "terraform-enterprise-${var.hostname}"
-  }
-
-  tags {
-    InstallationId = "${var.installation_id}"
-  }
+  tags = "${merge(local.ebs_tags, var.additional_tags)}"
 }
 
 resource "aws_launch_configuration" "ptfe" {
@@ -334,9 +343,7 @@ resource "aws_elb" "ptfe" {
     interval            = 5
   }
 
-  tags {
-    Name = "terraform-enterprise"
-  }
+  tags = "${merge(local.elb_tags, var.additional_tags)}"
 }
 
 output "dns_name" {

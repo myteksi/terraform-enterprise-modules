@@ -2,6 +2,10 @@ terraform {
   required_version = ">= 0.9.3"
 }
 
+variable "additional_tags" {
+  default = {}
+}
+
 variable "fqdn" {
   description = "The fully qualified domain name the cluster is accessible as"
 }
@@ -285,6 +289,7 @@ module "instance" {
   proxy_url                   = "${var.proxy_url}"
   no_proxy                    = "${var.no_proxy}"
   local_setup                 = "${var.local_setup}"
+  additional_tags             = "${var.additional_tags}"
 }
 
 module "db" {

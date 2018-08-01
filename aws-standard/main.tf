@@ -177,6 +177,16 @@ variable "internal_security_group_ids" {
   default     = []
 }
 
+variable "enable_ssh_rule" {
+  description = "Enable allow ssh access from everwhere"
+  default     = true
+}
+
+variable "enable_web_rule" {
+  description = "Allow web access from everwhere to port 8080"
+  default     = true
+}
+
 variable "proxy_url" {
   description = "A url (http or https, with port) to proxy all external http/https request from the cluster to."
   default     = ""
@@ -280,6 +290,8 @@ module "instance" {
   internal_elb                = "${var.internal_elb}"
   ebs_redundancy              = "${(var.local_redis || var.local_db) ? var.ebs_redundancy : 0}"
   startup_script              = "${var.startup_script}"
+  enable_ssh_rule             = "${var.enable_ssh_rule}"
+  enable_web_rule             = "${var.enable_web_rule}"
   external_security_group_ids = "${var.external_security_group_ids}"
   internal_security_group_ids = "${var.internal_security_group_ids}"
   proxy_url                   = "${var.proxy_url}"

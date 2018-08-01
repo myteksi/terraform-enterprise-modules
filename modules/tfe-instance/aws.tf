@@ -1,3 +1,7 @@
+locals {
+  elb_sg_ids = ["${concat(var.external_security_group_ids, aws_security_group.ptfe-external.*.id)}"]
+}
+
 variable "hostname" {}
 
 variable "vpc_id" {}
@@ -33,15 +37,15 @@ variable "redis_port" {}
 variable "kms_key_id" {}
 
 variable "archivist_sse" {
-  type = "string"
+  type        = "string"
   description = "Setting for server-side encryption of objects in S3; if provided, must be set to 'aws:kms'"
-  default = ""
+  default     = ""
 }
 
 variable "archivist_kms_key_id" {
-  type = "string"
+  type        = "string"
   description = "KMS key ID used by Archivist to enable S3 server-side encryption"
-  default = ""
+  default     = ""
 }
 
 variable "local_setup" {
@@ -84,6 +88,16 @@ variable "internal_security_group_ids" {
   default     = []
 }
 
+variable "enable_ssh_rule" {
+  description = "Allow ssh access from everwhere"
+  default     = true
+}
+
+variable "enable_web_rule" {
+  description = "Allow web access from everwhere to port 8080"
+  default     = true
+}
+
 variable "proxy_url" {
   description = "A url (http or https, with port) to proxy all external http/https request from the cluster to."
   type        = "string"
@@ -98,41 +112,63 @@ variable "no_proxy" {
 
 resource "aws_security_group" "ptfe" {
   vpc_id = "${var.vpc_id}"
-  count  = "${length(var.internal_security_group_ids) != 0 ? 0 : 1}"
 
-  ingress {
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
+}
 
-  ingress {
-    from_port   = 8080
-    to_port     = 8080
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
+# Allow users to disable SSH access to the entire subnet
+# and attach their own custom SG, but that require to move
+# all existing rules of EC2 SG into it's own resource
+resource "aws_security_group_rule" "ptfe-ssh" {
+  count             = "${var.enable_ssh_rule}"
+  security_group_id = "${aws_security_group.ptfe.id}"
+  type              = "ingress"
+  protocol          = "tcp"
+  from_port         = 22
+  to_port           = 22
+  cidr_blocks       = ["0.0.0.0/0"]
+}
 
-  # TCP All outbound traffic
-  egress {
-    from_port   = 0
-    to_port     = 65535
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
+resource "aws_security_group_rule" "ptfe-inbound-8080-from-elb" {
+  count                    = "${length(local.elb_sg_ids)}"
+  security_group_id        = "${aws_security_group.ptfe.id}"
+  type                     = "ingress"
+  protocol                 = "tcp"
+  from_port                = 8080
+  to_port                  = 8080
+  source_security_group_id = "${element(local.elb_sg_ids, count.index)}"
+}
 
-  # UDP All outbound traffic
-  egress {
-    from_port   = 0
-    to_port     = 65535
-    protocol    = "udp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
+resource "aws_security_group_rule" "ptfe-inbound-8080" {
+  count             = "${var.enable_web_rule}"
+  security_group_id = "${aws_security_group.ptfe.id}"
+  type              = "ingress"
+  protocol          = "tcp"
+  from_port         = 8080
+  to_port           = 8080
+  cidr_blocks       = ["0.0.0.0/0"]
+}
 
   tags {
     Name = "terraform-enterprise"
   }
+# TCP All outbound traffic
+resource "aws_security_group_rule" "ptfe-outbound-tcp" {
+  security_group_id = "${aws_security_group.ptfe.id}"
+  type              = "egress"
+  protocol          = "tcp"
+  from_port         = 0
+  to_port           = 65535
+  cidr_blocks       = ["0.0.0.0/0"]
+}
+
+# UDP All outbound traffic
+resource "aws_security_group_rule" "ptfe-outbound-udp" {
+  security_group_id = "${aws_security_group.ptfe.id}"
+  type              = "egress"
+  protocol          = "udp"
+  from_port         = 0
+  to_port           = 65535
+  cidr_blocks       = ["0.0.0.0/0"]
 }
 
 resource "aws_security_group" "ptfe-external" {
@@ -197,7 +233,7 @@ resource "aws_launch_configuration" "ptfe" {
   image_id             = "${var.ami_id}"
   instance_type        = "${var.instance_type}"
   key_name             = "${var.key_name}"
-  security_groups      = ["${concat(var.internal_security_group_ids, aws_security_group.ptfe.*.id)}"]
+  security_groups      = ["${concat(var.internal_security_group_ids, list(aws_security_group.ptfe.id))}"]
   iam_instance_profile = "${aws_iam_instance_profile.tfe_instance.name}"
 
   root_block_device {
@@ -309,7 +345,7 @@ EXTRA_NO_PROXY="${var.no_proxy}"
 resource "aws_elb" "ptfe" {
   internal        = "${var.internal_elb}"
   subnets         = ["${var.elb_subnet_id}"]
-  security_groups = ["${concat(var.external_security_group_ids, aws_security_group.ptfe-external.*.id)}"]
+  security_groups = ["${local.elb_sg_ids}"]
 
   listener {
     instance_port      = 8080

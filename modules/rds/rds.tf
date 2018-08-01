@@ -26,6 +26,8 @@ variable "storage_type" {}
 
 variable "kms_key_id" {}
 
+variable "ptfe_sg" {}
+
 variable "snapshot_identifier" {
   default = ""
 }
@@ -55,10 +57,10 @@ resource "aws_security_group" "rds" {
   vpc_id = "${var.vpc_id}"
 
   ingress {
-    protocol    = -1
-    from_port   = 0
-    to_port     = 0
-    cidr_blocks = ["${var.vpc_cidr}"]
+    protocol        = "tcp"
+    from_port       = 5432
+    to_port         = 5432
+    security_groups = ["${var.ptfe_sg}"]
   }
 
   egress {

@@ -1,5 +1,22 @@
 locals {
   elb_sg_ids = ["${concat(var.external_security_group_ids, aws_security_group.ptfe-external.*.id)}"]
+
+  ebs_tags {
+    Name           = "terraform-enterprise-${var.hostname}"
+    InstallationId = "${var.installation_id}"
+  }
+
+  ec2_sg_tags {
+    Name = "terraform-enterprise"
+  }
+
+  elb_sg_tags {
+    Name = "terraform-enterprise-external"
+  }
+
+  elb_tags {
+    Name = "terraform-enterprise"
+  }
 }
 
 variable "hostname" {}
@@ -113,6 +130,7 @@ variable "no_proxy" {
 resource "aws_security_group" "ptfe" {
   vpc_id = "${var.vpc_id}"
 
+  tags = "${merge(local.ec2_sg_tags, var.additional_tags)}"
 }
 
 # Allow users to disable SSH access to the entire subnet
@@ -149,9 +167,6 @@ resource "aws_security_group_rule" "ptfe-inbound-8080" {
   cidr_blocks       = ["0.0.0.0/0"]
 }
 
-  tags {
-    Name = "terraform-enterprise"
-  }
 # TCP All outbound traffic
 resource "aws_security_group_rule" "ptfe-outbound-tcp" {
   security_group_id = "${aws_security_group.ptfe.id}"
@@ -206,9 +221,7 @@ resource "aws_security_group" "ptfe-external" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags {
-    Name = "terraform-enterprise-external"
-  }
+  tags = "${merge(local.elb_sg_tags, var.additional_tags)}"
 }
 
 # EC2 -> ELB
@@ -233,13 +246,7 @@ resource "aws_ebs_volume" "data" {
   size              = "${var.ebs_size}"
   type              = "gp2"
 
-  tags {
-    Name = "terraform-enterprise-${var.hostname}"
-  }
-
-  tags {
-    InstallationId = "${var.installation_id}"
-  }
+  tags = "${merge(local.ebs_tags, var.additional_tags)}"
 }
 
 resource "aws_launch_configuration" "ptfe" {
@@ -383,9 +390,7 @@ resource "aws_elb" "ptfe" {
     interval            = 5
   }
 
-  tags {
-    Name = "terraform-enterprise"
-  }
+  tags = "${merge(local.elb_tags, var.additional_tags)}"
 }
 
 output "dns_name" {

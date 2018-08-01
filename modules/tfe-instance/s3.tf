@@ -1,3 +1,9 @@
+locals {
+  tags = {
+    Name = "${var.bucket_name}"
+  }
+}
+
 variable "bucket_name" {}
 
 variable "bucket_region" {}
@@ -10,6 +16,10 @@ variable "manage_bucket" {
   default = true
 }
 
+variable "additional_tags" {
+  default = {}
+}
+
 resource "aws_s3_bucket" "tfe_bucket" {
   count         = "${var.manage_bucket ? 1 : 0}"
   bucket        = "${var.bucket_name}"
@@ -20,4 +30,6 @@ resource "aws_s3_bucket" "tfe_bucket" {
   versioning {
     enabled = true
   }
+
+  tags = "${merge(local.tags, var.additional_tags)}"
 }

@@ -1,3 +1,9 @@
+locals {
+  db_tags {
+    Name = "db-terraform-enterprise"
+  }
+}
+
 variable "instance_class" {}
 
 variable "multi_az" {}
@@ -40,6 +46,10 @@ variable "db_name" {
   default = "atlas_production"
 }
 
+variable "additional_tags" {
+  default = {}
+}
+
 resource "aws_db_subnet_group" "rds" {
   count       = "${var.disable ? 0 : 1}"
   name        = "${var.name}"
@@ -69,6 +79,8 @@ resource "aws_security_group" "rds" {
     to_port     = 0
     cidr_blocks = ["0.0.0.0/0"]
   }
+
+  tags = "${merge(local.db_tags, var.additional_tags)}"
 }
 
 resource "aws_db_instance" "rds" {
@@ -106,6 +118,8 @@ resource "aws_db_instance" "rds" {
   timeouts {
     create = "2h"
   }
+
+  tags = "${merge(local.db_tags, var.additional_tags)}"
 }
 
 output "database" {

@@ -72,6 +72,7 @@ variable "local_redis" {
 
 variable "region" {
   description = "AWS region to place cluster into"
+  default     = "ap-southeast-1"
 }
 
 variable "ami_id" {

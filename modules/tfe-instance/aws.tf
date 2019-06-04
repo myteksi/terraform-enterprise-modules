@@ -258,8 +258,11 @@ resource "aws_launch_configuration" "ptfe" {
 
   root_block_device {
     volume_size = 250
+    volume_type = "io1"
+    iops        = 6000
   }
 
+  #TODO: find way to install datadog and rest of tools from user_data settings
   user_data = <<-BASH
 #!/bin/sh
 
